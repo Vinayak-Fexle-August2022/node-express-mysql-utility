@@ -1,0 +1,23 @@
+{
+  "name": "express-mysql-utility",
+  "version": "1.0.0",
+  "description": "generic utility project that holds different types of reusable codebase for general tasks",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinayakfexle/node-express-mysql-utility.git"
+  },
+  "author": "Vinayak Munsi Banjara",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vinayakfexle/node-express-mysql-utility/issues"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "nodemon": "^3.1.7"
+  }
+}

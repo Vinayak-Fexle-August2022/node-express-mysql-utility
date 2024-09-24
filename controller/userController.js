@@ -82,14 +82,29 @@ export function handleDeleteUser(req, res){
 export function handleUpdateUser(req, res){
     try{
         const userId = req.params.userId;
-        console.log(`update user with Id: ${userId}`);
         if (!userId){
             return res.status(404).json("please provide user Id...");
         }
 
+        // check if user is present or not
+        let users = [];
+        let sql = `SELECT name FROM user WHERE Id=${userId}`;
+        connection.query(sql, (err, result) => {
+            if (err){
+                console.log(err);
+                return res.status(500).json("internal server error");
+            }
+            users = result;
+        });
+
+        console.log(users);
+        if (!users || users.length <= 0){
+            return res.status(404).json("user with given Id doesn't exists");
+        }
+
         const data = req.body;
 
-        let sql = `UPDATE user SET `
+        sql = `UPDATE user SET `
         for (let field_data in data){
             if (data[field_data]){
                 sql += `${field_data}='${data[field_data]}', `;

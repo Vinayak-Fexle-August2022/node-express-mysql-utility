@@ -1,10 +1,20 @@
 import express from "express";
+import bodyParser from "body-parser";
+
 import userRouter from "./routes/userRoutes.js"
+import { connectDatabase } from "./settings.js";
+
 
 const app = express();
 const PORT = 3001;
 
-app.use('/', userRouter);
+connectDatabase();
+
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+app.use('/user', userRouter);
 
 // app.get("/:name?", (req, res) => { 
 //     console.log(req);

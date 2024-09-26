@@ -1,20 +1,31 @@
-import express from "express";
-import bodyParser from "body-parser";
+const cookieParser = require("cookie-parser");
 
-import userRouter from "./routes/userRoutes.js"
-import { connectDatabase } from "./settings.js";
+const express = require("express");
 
+const userRouter = require("./routes/userRoutes.js");
+const shopRouter = require("./routes/shopRoutes.js");
+
+const path = require("path");
+const bodyParser = require("body-parser");
+
+const restrictToLoggedinUserOnly = require("./middlewares/auth.js")
 
 const app = express();
 const PORT = 3001;
 
-connectDatabase();
+app.set('view engine', 'ejs');
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+app.use(cookieParser());
+
+
 app.use('/user', userRouter);
+app.use('/shop', restrictToLoggedinUserOnly, shopRouter);
 
 // app.get("/:name?", (req, res) => { 
 //     console.log(req);

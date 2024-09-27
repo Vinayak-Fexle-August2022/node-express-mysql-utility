@@ -1,27 +1,24 @@
-import express from "express";
-import bodyParser from "body-parser";
+const express = require("express");
+const bodyParser = require("body-parser");
+const userRouter = require("./routes/userRoutes.js");
+const auth = require("./middleware/auth.js")
+const Unless = require('express-unless');
 
-import userRouter from "./routes/userRoutes.js"
-import { connectDatabase } from "./settings.js";
 
-
+// settings
 const app = express();
 const PORT = 3001;
 
-connectDatabase();
-
-// parse application/x-www-form-urlencoded
+// middlewares
+auth.unless = Unless.unless;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(auth.unless({ path: ['/user/'] }));
 
+// routes
 app.use('/user', userRouter);
 
-// app.get("/:name?", (req, res) => { 
-//     console.log(req);
-//     console.log(`Hello ${req.params.name}`); 
-//     res.send(`<h1>Hello, ${req.params.name}`);
-// });
-
+// listning app on given port 
 app.listen(PORT, () => {
     console.log(`listening at http://localhost:${PORT}`);
-})
+});

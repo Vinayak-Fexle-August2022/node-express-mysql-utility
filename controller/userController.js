@@ -1,6 +1,17 @@
-import { connection } from "../settings.js";
+const pool = require("../db.js");
 
-export function handleGetUser(req, res){
+const crypto = require('crypto');
+
+function generateUniqueToken() {
+    const timestamp = Date.now();
+    const paddedTimestamp = String(timestamp).padStart(16, '0');
+    const randomBytes = crypto.randomBytes(8).toString('base64').replace(/=/g, '');
+    const token = `${paddedTimestamp}-${randomBytes}`;
+    return Buffer.from(token).toString('base64');
+}
+
+
+async function handleGetUser(req, res){
     try{
         const userId = req.params.userId
 
@@ -10,41 +21,15 @@ export function handleGetUser(req, res){
 
         let sql = `SELECT * FROM user WHERE id = ${userId}`;
 
-        connection.query(sql, function(err, result, fields){
-            if(err){
-                console.log(err);
-            }
-            else{
-                if (result.length <= 0){
-                    return res.status(404).json("user not found..!")
-                }
-                res.status(200).json(result);
-            }
-        });
-    }
-    catch(err){
-        console.log(err);
-        return res.status(500).json("internal server error");
-    }
-}
+        const [rows] = await pool.query(sql);
 
-export function handleCreateUser(req, res){
-    try{
-        const data = req.body;
-        if (!data.name || !data.email || !data.password){
-            return res.status(400).json("bad request, Please provide valid data..!")
+        console.log(rows);
+
+        if (rows.length <= 0){
+            return res.status(404).json("user not found..!")
         }
 
-        let sql =  `INSERT INTO user (name, email, password) VALUES ('${data.name}', '${data.email}', '${data.password}')`;
-
-        connection.query(sql, function(err){
-            if(err){
-                console.log(err);
-            }
-            else{
-                return res.status(200).json("record created successfully.")
-            }
-        });
+        res.status(200).json(rows);
     }
     catch(err){
         console.log(err);
@@ -52,7 +37,39 @@ export function handleCreateUser(req, res){
     }
 }
 
-export function handleDeleteUser(req, res){
+
+async function handleCreateUser(req, res){
+    try{
+        const {name, email, password} = req.body;
+        if (!name || !email || !password){
+            return res.status(400).json("bad request, Please provide valid data..!");
+        }
+
+        const token = generateUniqueToken();
+        console.log(token);
+
+        let sql =  `INSERT INTO user (name, email, password, token) VALUES ('${name}', '${email}', '${password}', '${token}')`;
+
+        const result = await pool.query(sql)
+        .then(([ result ]) => {
+            console.log(result);
+            userId = result.insertId;
+            let data = {'token': token, user_id: userId};
+            return res.status(200).json(data);
+        })
+        .catch(error => {
+            return res.status(401).json(error.message);
+        });
+
+    }
+    catch(err){
+        console.log(err);
+        return res.status(500).json("internal server error");
+    }
+}
+
+
+async function handleDeleteUser(req, res){
     try{
         const userId = req.params.userId
         console.log(`delete user with Id: ${userId}`)
@@ -63,14 +80,14 @@ export function handleDeleteUser(req, res){
 
         let sql = `DELETE FROM user WHERE Id = ${userId}`
 
-        connection.query(sql, function(err){
-            if (err){
-                return res.status(404).json("please provide user Id...");
-            }
-            else{
-                return res.status(200).json("user deleted successfully.");
-            }
-        })
+        const result = await pool.query(sql);
+
+        if (result[0].affectedRows > 0){
+            return res.status(200).json("record deleted successfully.");
+        }
+        else{
+            return res.status(404).json("please provide valid user Id...");
+        }
     }
     catch(err){
         console.log(err);
@@ -79,7 +96,7 @@ export function handleDeleteUser(req, res){
 }
 
 
-export function handleUpdateUser(req, res){
+async function handleUpdateUser(req, res){
     try{
         const userId = req.params.userId;
         if (!userId){
@@ -89,17 +106,13 @@ export function handleUpdateUser(req, res){
         // check if user is present or not
         let users = [];
         let sql = `SELECT name FROM user WHERE Id=${userId}`;
-        connection.query(sql, (err, result) => {
-            if (err){
-                console.log(err);
-                return res.status(500).json("internal server error");
-            }
-            users = result;
-        });
 
-        console.log(users);
-        if (!users || users.length <= 0){
-            return res.status(404).json("user with given Id doesn't exists");
+        const rows = await pool.query(sql);
+        if (rows.length > 0){
+            users = rows
+        }
+        else{
+            return res.status(404).json("please provide valid user Id...");
         }
 
         const data = req.body;
@@ -118,18 +131,26 @@ export function handleUpdateUser(req, res){
         sql += ` WHERE Id=${userId}`;
         console.log(sql);
 
-        connection.query(sql, function(err){
-            if (err){
-                console.log(err);
-                return res.status(500).json("internal server error");
-            }
-            else{
-                return res.status(200).json("record updated successfully");
-            }
-        })
+        const result = await pool.query(sql);
+
+        if (result[0].affectedRows > 0){
+            return res.status(200).json("record updated successfully.");
+        }
+        else{
+            return res.status(404).json("please provide valid user Id...");
+        }
     }
     catch(err){
         console.log(err);
         return res.status(500).json("internal server error");
     }
 }
+
+
+module.exports = {
+    handleGetUser,
+    handleCreateUser,
+    handleDeleteUser,
+    handleUpdateUser
+}
+

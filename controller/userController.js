@@ -1,35 +1,36 @@
-const pool = require("../db.js");
+import { User } from "../db.js";
+import { randomBytes as _randomBytes } from 'crypto';
+import { Op } from 'sequelize';
 
-const crypto = require('crypto');
 
-function generateUniqueToken() {
+async function generateUniqueToken() {
     const timestamp = Date.now();
     const paddedTimestamp = String(timestamp).padStart(16, '0');
-    const randomBytes = crypto.randomBytes(8).toString('base64').replace(/=/g, '');
+    const randomBytes = _randomBytes(8).toString('base64').replace(/=/g, '');
     const token = `${paddedTimestamp}-${randomBytes}`;
     return Buffer.from(token).toString('base64');
 }
 
 
-async function handleGetUser(req, res){
+export async function handleGetUser(req, res){
     try{
-        const userId = req.params.userId
-
+        const userId = req.params.userId;
         if (!userId){
             return res.status(404).json("please provide user Id...");
         }
 
-        let sql = `SELECT * FROM user WHERE id = ${userId}`;
+        const users = await User.findAll({
+            where: {
+                Id: {
+                    [Op.eq]: userId,
+                },
+            },
+        });
 
-        const [rows] = await pool.query(sql);
-
-        console.log(rows);
-
-        if (rows.length <= 0){
-            return res.status(404).json("user not found..!")
+        if (users.length <= 0){
+            return res.status(404).json("user not found..!");
         }
-
-        res.status(200).json(rows);
+        res.status(200).json(users);
     }
     catch(err){
         console.log(err);
@@ -38,7 +39,7 @@ async function handleGetUser(req, res){
 }
 
 
-async function handleCreateUser(req, res){
+export async function handleCreateUser(req, res){
     try{
         const {name, email, password} = req.body;
         if (!name || !email || !password){
@@ -46,21 +47,23 @@ async function handleCreateUser(req, res){
         }
 
         const token = generateUniqueToken();
-        console.log(token);
+        let user = {
+            'name':name, 
+            'email': email, 
+            'password': password, 
+            'token': token
+        }
 
-        let sql =  `INSERT INTO user (name, email, password, token) VALUES ('${name}', '${email}', '${password}', '${token}')`;
-
-        const result = await pool.query(sql)
-        .then(([ result ]) => {
-            console.log(result);
-            userId = result.insertId;
+        try {
+            const result = await User.create(user);
+            let userId = result.dataValues.id;
             let data = {'token': token, user_id: userId};
             return res.status(200).json(data);
-        })
-        .catch(error => {
-            return res.status(401).json(error.message);
-        });
-
+        } 
+        catch (err) {
+            console.error('Error creating user:', err.errors[0].message);
+            return res.status(400).json({ error: err.errors[0].message });
+        }
     }
     catch(err){
         console.log(err);
@@ -69,25 +72,27 @@ async function handleCreateUser(req, res){
 }
 
 
-async function handleDeleteUser(req, res){
+export async function handleDeleteUser(req, res){
     try{
         const userId = req.params.userId
-        console.log(`delete user with Id: ${userId}`)
-
         if (!userId){
             return res.status(404).json("please provide user Id...");
         }
+        try{
+            const result = await User.destroy({
+                where: {
+                    Id: {
+                        [Op.eq]: userId,
+                    },
+                },
+            });
 
-        let sql = `DELETE FROM user WHERE Id = ${userId}`
-
-        const result = await pool.query(sql);
-
-        if (result[0].affectedRows > 0){
-            return res.status(200).json("record deleted successfully.");
+            return res.status(200).json({'message':`${result} user with Id ${userId} deleted.`});
         }
-        else{
-            return res.status(404).json("please provide valid user Id...");
-        }
+        catch (err) {
+            console.error('Error creating user:', err.errors[0].message);
+            return res.status(400).json({ error: err.errors[0].message });
+        } 
     }
     catch(err){
         console.log(err);
@@ -96,48 +101,51 @@ async function handleDeleteUser(req, res){
 }
 
 
-async function handleUpdateUser(req, res){
+export async function handleUpdateUser(req, res){
     try{
         const userId = req.params.userId;
+        const data = req.body;
+
         if (!userId){
             return res.status(404).json("please provide user Id...");
         }
 
-        // check if user is present or not
-        let users = [];
-        let sql = `SELECT name FROM user WHERE Id=${userId}`;
+        const users = await User.findAll({
+            where: {
+                Id: {
+                    [Op.eq]: userId,
+                },
+            },
+        });
 
-        const rows = await pool.query(sql);
-        if (rows.length > 0){
-            users = rows
-        }
-        else{
+        console.log('rows count:', users.length)
+
+        if (users.length <= 0){
             return res.status(404).json("please provide valid user Id...");
         }
 
-        const data = req.body;
-
-        sql = `UPDATE user SET `
-        for (let field_data in data){
-            if (data[field_data]){
-                sql += `${field_data}='${data[field_data]}', `;
+        let data_to_update = {}
+        
+        for (let field in data){
+            if (data[field]){
+                data_to_update[field] = data[field];
             }
         }
 
-        /* removing quama and white space character 
-        present at start and end of the string*/
-        sql = sql.replace(/,\s*$/, "");
+        const result = await User.update(
+            data_to_update,
+            {
+              where: {
+                id: userId,
+              },
+            },
+          );
 
-        sql += ` WHERE Id=${userId}`;
-        console.log(sql);
-
-        const result = await pool.query(sql);
-
-        if (result[0].affectedRows > 0){
+        if (result[0] > 0){
             return res.status(200).json("record updated successfully.");
         }
         else{
-            return res.status(404).json("please provide valid user Id...");
+            return res.status(404).json("update failed, please check your data...");
         }
     }
     catch(err){
@@ -146,11 +154,4 @@ async function handleUpdateUser(req, res){
     }
 }
 
-
-module.exports = {
-    handleGetUser,
-    handleCreateUser,
-    handleDeleteUser,
-    handleUpdateUser
-}
 

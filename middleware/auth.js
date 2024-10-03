@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const pool = require("../db.js");
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { UserModel } from "../db.js";
 
 async function restrictToAuthorisedUserOnly(req, res, next) {
     const authToken = req.headers.authorization?.split(" ")[1];
@@ -12,7 +12,7 @@ async function restrictToAuthorisedUserOnly(req, res, next) {
     const sql = `SELECT * FROM user WHERE token = ?`;
 
     try {
-        const [rows] = await pool.query(sql, [authToken]);
+        const [rows] = await query(sql, [authToken]);
         const user = rows[0];
 
         if (!user) {
@@ -29,4 +29,4 @@ async function restrictToAuthorisedUserOnly(req, res, next) {
 }
 
 
-module.exports = restrictToAuthorisedUserOnly;
+export default restrictToAuthorisedUserOnly;

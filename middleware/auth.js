@@ -13,7 +13,7 @@ export async function restrictToAuthorisedUserOnly(req, res, next) {
         if (!authToken) {
             return res.status(401).json({ message: "Unauthorized: No token provided" });
         }
-        
+
         try{
             user = jwt.verify(authToken, secret);
         }catch(error){

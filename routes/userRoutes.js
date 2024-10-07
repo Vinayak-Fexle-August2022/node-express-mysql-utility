@@ -8,4 +8,4 @@ router.route("/get/:userId?").get(userController.handleGetUser);
 router.route("/delete/:userId?").delete(userController.handleDeleteUser);
 router.route("/edit/:userId?").patch(userController.handleUpdateUser);
 
-export default router;
+export { router };

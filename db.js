@@ -20,7 +20,7 @@ const dbConnection = async () => {
         
         // Sync the models
         await database.sync();
-        console.log('Database & tables created!');
+        console.log('DB synced!');
     } catch (error) {
         console.error('Unable to connect to the database:', error);
     }

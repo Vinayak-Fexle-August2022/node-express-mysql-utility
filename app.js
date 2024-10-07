@@ -1,7 +1,11 @@
 import express from "express";
 import bodyParser from "body-parser";
-import userRouter from "./routes/userRoutes.js";
+
+import { router as userRouter } from "./routes/userRoutes.js";
+import { router as authRouter } from "./routes/authRoute.js"
+
 import { dbConnection } from './db.js';
+import { restrictToAuthorisedUserOnly } from "./middleware/auth.js"
 
 
 // settings
@@ -16,8 +20,8 @@ app.use(bodyParser.json());
 dbConnection();
 
 // routes
-app.use('/users', userRouter);
-
+app.use('/auth', authRouter);
+app.use('/users', restrictToAuthorisedUserOnly, userRouter);
 
 // listning app on given port 
 app.listen(PORT, () => {

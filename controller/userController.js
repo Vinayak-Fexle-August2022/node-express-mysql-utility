@@ -1,16 +1,7 @@
 import { User } from "../db.js";
-import { randomBytes as _randomBytes } from 'crypto';
+import { encryptPassword } from "../utils/encryptDecrypt.js";
+import { generateUniqueToken } from "../utils/generateAuthToken.js";
 import { Op } from 'sequelize';
-
-
-async function generateUniqueToken() {
-    const timestamp = Date.now();
-    const paddedTimestamp = String(timestamp).padStart(16, '0');
-    const randomBytes = _randomBytes(8).toString('base64').replace(/=/g, '');
-    const token = `${paddedTimestamp}-${randomBytes}`;
-    return Buffer.from(token).toString('base64');
-}
-
 
 export async function handleGetUser(req, res){
     try{
@@ -46,11 +37,16 @@ export async function handleCreateUser(req, res){
             return res.status(400).json("bad request, Please provide valid data..!");
         }
 
-        const token = generateUniqueToken();
+        let encryptedPwd = await encryptPassword(password);
+
+        const token = jwt.sign({
+            "email": email
+        }, secret);
+
         let user = {
             'name':name, 
             'email': email, 
-            'password': password, 
+            'password': encryptedPwd, 
             'token': token
         }
 
@@ -58,7 +54,7 @@ export async function handleCreateUser(req, res){
             const result = await User.create(user);
             let userId = result.dataValues.id;
             let data = {'token': token, user_id: userId};
-            return res.status(200).json(data);
+            return res.status(200).json({"response": "registered successfully"});
         } 
         catch (err) {
             console.error('Error creating user:', err.errors[0].message);
@@ -67,7 +63,7 @@ export async function handleCreateUser(req, res){
     }
     catch(err){
         console.log(err);
-        return res.status(500).json("internal server error");
+        return res.status(500).json({"error": "internal server error"});
     }
 }
 
